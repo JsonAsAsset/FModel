@@ -610,17 +610,46 @@ public class CUE4ParseViewModel : ViewModel
             case "uasset":
             case "umap":
             {
-                var exports = Provider.LoadAllObjects(fullPath);
-                TabControl.SelectedTab.SetDocumentText(JsonConvert.SerializeObject(exports, Formatting.Indented), saveProperties, updateUi);
-                if (HasFlag(bulk, EBulkType.Properties)) break; // do not search for viewable exports if we are dealing with jsons
+                    var objectPath = fullPath.SubstringBefore('.') + ".o.uasset";
+                    var exports = Provider.LoadAllObjects(fullPath);
+                    var finalExports = new List<UObject>(exports);
 
-                foreach (var e in exports)
-                {
-                    if (CheckExport(cancellationToken, e, bulk))
-                        break;
-                }
+                    finalExports.AddRange(exports);
 
-                break;
+                    var mergedExports = new List<UObject>();
+                    if (Provider.TryLoadPackage(objectPath, out var editorAsset))
+                    {
+                        foreach (var export in exports)
+                        {
+                            var editorData = editorAsset.GetExportOrNull(export.Name + "EditorOnlyData");
+                            if (editorData != null)
+                            {
+                                export.Properties.AddRange(editorData.Properties);
+                                mergedExports.Add(export);
+                            }
+                        }
+
+                        foreach (var editorExport in editorAsset.GetExports())
+                        {
+                            if (!mergedExports.Contains(editorExport))
+                            {
+                                finalExports.Add(editorExport);
+                            }
+                        }
+                    }
+                    mergedExports.Clear();
+
+                    TabControl.SelectedTab.SetDocumentText(JsonConvert.SerializeObject(finalExports, Formatting.Indented), saveProperties, updateUi);
+                    if (HasFlag(bulk, EBulkType.Properties))
+                        break; // do not search for viewable exports if we are dealing with jsons
+
+                    foreach (var e in finalExports)
+                    {
+                        if (CheckExport(cancellationToken, e, bulk))
+                            break;
+                    }
+
+                    break;
             }
             case "upluginmanifest":
             case "uproject":
