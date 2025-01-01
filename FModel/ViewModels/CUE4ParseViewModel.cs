@@ -614,8 +614,6 @@ public class CUE4ParseViewModel : ViewModel
                     var exports = Provider.LoadAllObjects(fullPath);
                     var finalExports = new List<UObject>(exports);
 
-                    finalExports.AddRange(exports);
-
                     var mergedExports = new List<UObject>();
                     if (Provider.TryLoadPackage(objectPath, out var editorAsset))
                     {
